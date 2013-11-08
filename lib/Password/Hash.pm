@@ -22,17 +22,46 @@ has salt_length => (
 );
 
 sub make_password {
-	my ($self, $password) = @_;
+	my ($self, $password, %args) = @_;
 	my $method = $self->methods->[0] or die "No method";
 	my $module = "Password::Hash::$method";
 	eval "use $module";
-	my $salt = 'abc';
+	$args{salt}      //= 'abc';
+	$args{iteration} //= $self->iteration;
 
-	foreach (1 .. $self->iteration) {
-		$password = $module->make_password($password, $salt);
+	foreach (1 .. $args{iteration}) {
+		$password = $module->make_password($password, $args{salt});
 	}
-	return sprintf '%s$%s$%s$%s', $module->method, $self->iteration, $salt, $password;
+	return sprintf '%s$%s$%s$%s', $module->method_id, $args{iteration}, $args{salt}, $password;
 }
+
+sub check_password {
+	my ($self, $password, $encoded) = @_;
+
+	my ($method_id, $iteration, $salt, $code) = split /\$/, $encoded;
+	my $method;
+	foreach my $m (@{ $self->methods }) {
+		my $module = "Password::Hash::$m";
+		eval "use $module";
+		my $m_id = $module->method_id;
+		if ($method_id == $m_id) {
+			$method = $m;
+			last;
+		}
+	}
+	die "Unhandled method" if not $method;
+
+	my $result = $self->make_password($password, 
+		iteration => $iteration,
+		salt      => $salt,
+	);
+
+	return $encoded eq $result ? 1 : 0;
+}
+
+
+
+
 
 1;
 
