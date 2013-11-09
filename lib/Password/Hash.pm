@@ -2,6 +2,8 @@ package Password::Hash;
 use Moo;
 use MooX::late;
 
+my $API = 1;
+
 has methods => (
 	is      => 'rw',
 	isa     => 'ArrayRef',
@@ -15,14 +17,25 @@ has iteration => (
 	default => 1,
 );
 
-has salt_length => (
+has generated_salt_length => (
 	is      => 'rw',
 	isa     => 'Int', #Positive Int?
 	default => 4,
 );
 
+# maximum number of bytes for the clear-text password to avoid DDOS attacks:
+# https://www.djangoproject.com/weblog/2013/sep/15/security/
+has max_password_length => (
+	is      => 'rw',
+	isa     => 'Int', #Positive Int?
+	default => 128,
+);
+
 sub make_password {
 	my ($self, $password, %args) = @_;
+
+	die 'Password too long' if length $password > $self->max_password_length;
+
 	my $method = $self->methods->[0] or die "No method";
 	my $module = "Password::Hash::$method";
 	eval "use $module";
@@ -32,24 +45,21 @@ sub make_password {
 	foreach (1 .. $args{iteration}) {
 		$password = $module->make_password($password, $args{salt});
 	}
-	return sprintf '%s$%s$%s$%s', $module->method_id, $args{iteration}, $args{salt}, $password;
+	return sprintf '%s$%s$%s$%s$%s', $API, $method, $args{iteration}, $args{salt}, $password;
 }
 
 sub check_password {
 	my ($self, $password, $encoded) = @_;
 
-	my ($method_id, $iteration, $salt, $code) = split /\$/, $encoded;
-	my $method;
-	foreach my $m (@{ $self->methods }) {
-		my $module = "Password::Hash::$m";
-		eval "use $module";
-		my $m_id = $module->method_id;
-		if ($method_id == $m_id) {
-			$method = $m;
-			last;
-		}
-	}
-	die "Unhandled method" if not $method;
+	die 'Password too long' if length $password > $self->max_password_length;
+
+	my ($api, $method, $iteration, $salt, $code) = split /\$/, $encoded;
+	die if $api ne $API;
+	die if not defined $code; # TODO more checks
+
+	my $module = "Password::Hash::$method";
+	eval "use $module";
+	die "Unhandled method '$method'" if $@;
 
 	my $result = $self->make_password($password, 
 		iteration => $iteration,
@@ -59,9 +69,67 @@ sub check_password {
 	return $encoded eq $result ? 1 : 0;
 }
 
+sub _generate_salt {
+	my ($self) = @_;
+
+	my $salt = '';
+	for (1 .. $self->generated_salt_length) {
+		$salt .= rand
+	}
+
+	return $salt;
+}
+
+=head1 NAME
+
+Password::Hash - Easy and secure storing of encrypted passwords
+
+=head1 SYNOPSIS
+
+Given a clear-text password convert it to an encrypted (hashed) string:
+
+    use Password::Hash;
+    my $ph = Password::Hash->new;
+    my $hashed_pw = $ph->make_password('some secret'); # 1$1$abc$abM.kUMZnioHA
+
+Given a clear-text password and a hashed string returns true if hashing the clear-text
+password will lead to the same hash we passed:
+
+    use Password::Hash;
+    if ( $ph->check_password('some secret', $hashed_pw) ) {
+        # the password matches
+	}
+
+=head1 DESCRIPTION
+
+The string returned by C<make_password> has the following format:
+
+    <algorithm>$<iterations>$<salt>$<hash>
+
+Where C<algorightm> is one of the avaliable hahsing algorithms, (e.g. crypt, md5, sha1, sha256 etc).
+C<iteration> is the number of times the encryption is called. It helps making the hashing be more computationally expensive.
+C<salt> is a string added to the original password to reduce the possibility of rainbow attack.
+C<hash> the actual hash from the one-way hashing algorithm.
 
 
+=head SEE ALSO
 
+L<Authen::Passphrase>, L<Crypt::Password::Util>, L<Crypt::Password::StretchedHash::HashInfo>
+
+L<https://docs.djangoproject.com/en/1.5/topics/auth/passwords/>
+
+L<http://www.pal-blog.de/entwicklung/perl/when-slower-is-better-secure-your-passwords.html>
+
+=head1 COPYRIGHT
+
+=encoding utf8
+
+Copyright (c) 2013 Szabó, Gábor (http://szabgab.com/)
+
+All right reserved. This program is free software; you can redistribute it
+and/or modify it under the same terms as Perl 5.10 itself.
+
+=cut
 
 1;
 

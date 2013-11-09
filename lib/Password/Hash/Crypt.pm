@@ -8,7 +8,5 @@ sub make_password {
 	return crypt($password, $salt);
 }
 
-sub method_id { 1 }
-
 1;
 
