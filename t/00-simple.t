@@ -12,6 +12,12 @@ my @cases = (
 	{
 		methods => [qw(MD5 Crypt)],
 	},
+	{
+		methods => [qw(SHA1)],
+	},
+	{
+		methods => [qw(SHA512)],
+	},
 );
 
 plan tests => 3 + $N * @cases;

@@ -104,11 +104,18 @@ password will lead to the same hash we passed:
 
 The string returned by C<make_password> has the following format:
 
-    <algorithm>$<iterations>$<salt>$<hash>
+    <api>$<algorithm>$<iterations>$<salt>$<hash>
 
-Where C<algorightm> is one of the avaliable hahsing algorithms, (e.g. crypt, md5, sha1, sha256 etc).
+Where 
+
+C<api> is the internal api version of this module. It specifies the format of the strings.
+
+C<algorithm> is one of the avaliable hahsing algorithms, (e.g. Crypt, MD5, sha1, sha256 etc).
+
 C<iteration> is the number of times the encryption is called. It helps making the hashing be more computationally expensive.
+
 C<salt> is a string added to the original password to reduce the possibility of rainbow attack.
+
 C<hash> the actual hash from the one-way hashing algorithm.
 
 
