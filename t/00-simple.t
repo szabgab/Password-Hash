@@ -20,23 +20,29 @@ my @cases = (
 	},
 );
 
-plan tests => 3 + $N * @cases;
+plan tests => 1 + 2 * $N * @cases;
 
 use Password::Hash;
-my $ph = Password::Hash->new;
-isa_ok $ph, 'Password::Hash';
 
-my $hashed_pw = $ph->make_password('hello world');
-#diag $hashed_pw;
-ok $ph->check_password('hello world', $hashed_pw), 'pw matches';
-ok !$ph->check_password('Hello world', $hashed_pw), 'wrong pw does not match';
+subtest 'default' => sub {
+	my $ph = Password::Hash->new;
+	isa_ok $ph, 'Password::Hash';
+
+	my $hashed_pw = $ph->make_password('hello world');
+	#diag $hashed_pw;
+	ok $ph->check_password('hello world', $hashed_pw), 'pw matches';
+	ok !$ph->check_password('Hello world', $hashed_pw), 'wrong pw does not match';
+};
 
 foreach my $c (@cases) {
-	my $p = Password::Hash->new(%$c);
+	my $ph = Password::Hash->new(%$c);
 
 	foreach (1 .. $N) {
 		my $pw = 'hello world';
 		my $hashed_pw = $ph->make_password($pw);
+		my ($api, $method, $iteration, $salt, $hash) = split /\$/, $hashed_pw;
+		is $method, $c->{methods}[0], "method is $c->{methods}[0]";
+		#diag $hashed_pw;
 		ok $ph->check_password($pw, $hashed_pw), "pw matches $c->{methods}[0]";
 	}
 }
