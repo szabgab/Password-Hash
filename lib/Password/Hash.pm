@@ -37,9 +37,9 @@ sub make_password {
 	die 'Password too long' if length $password > $self->max_password_length;
 
 	my $method = $self->methods->[0] or die "No method";
-	my $module = "Password::Hash::$method";
-	eval "use $module";
-	$args{salt}      //= 'abc';
+	my $module = _load($method);
+
+	$args{salt}      //= $self->_generate_salt;
 	$args{iteration} //= $self->iteration;
 
 	foreach (1 .. $args{iteration}) {
@@ -57,9 +57,7 @@ sub check_password {
 	die if $api ne $API;
 	die if not defined $code; # TODO more checks
 
-	my $module = "Password::Hash::$method";
-	eval "use $module";
-	die "Unhandled method '$method'" if $@;
+	my $module = _load($method);
 
 	my $result = $self->make_password($password, 
 		iteration => $iteration,
@@ -69,12 +67,22 @@ sub check_password {
 	return $encoded eq $result ? 1 : 0;
 }
 
+sub _load {
+	my ($method) = @_;
+	my $module = "Password::Hash::$method";
+	eval "use $module";
+	die "Unhandled method '$method' $@" if $@;
+	return $module;
+}
+
+
 sub _generate_salt {
 	my ($self) = @_;
 
+	my @chars = ('a'..'z', 'A'..'Z', 0..9);
 	my $salt = '';
 	for (1 .. $self->generated_salt_length) {
-		$salt .= rand
+		$salt .= $chars[ rand @chars ];
 	}
 
 	return $salt;

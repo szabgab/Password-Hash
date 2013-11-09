@@ -18,6 +18,10 @@ my @cases = (
 	{
 		methods => [qw(SHA512)],
 	},
+	{
+		methods => [qw(Bcrypt)],
+		generated_salt_length => 16,
+	},
 );
 
 plan tests => 1 + 2 * $N * @cases;
