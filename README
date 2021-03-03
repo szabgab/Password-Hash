@@ -1,0 +1,5 @@
+
+Generic module to hash (encrypt) a clear-text password easily and securely
+before saving it in a database.
+
+Format is similar to the format used in Django.
